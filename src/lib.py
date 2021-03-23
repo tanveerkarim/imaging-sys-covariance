@@ -34,7 +34,7 @@ class GenSys:
         self.mask = np.zeros(self.npix, 'bool')
         self.mask[self.hpix] = True
 
-    def contaminate(self, ix, delta, mask, noise = False, nside = 256, density = 2400, lmax = 1024):
+    def contaminate(self, ix, delta, mask, noisemap = None):
         """
 
         inputs:
@@ -49,16 +49,10 @@ class GenSys:
         mask_ = mask & self.mask
         delta_cont = np.zeros(self.npix)
         delta_cont[:] = hp.UNSEEN
-        if(noise == False):
-            delta_cont[mask_] = (delta[mask_]+1.0)*window[mask_] -1.0
+        if noisemap is not None:
+            delta_cont[mask_] = delta[mask_]*window[mask_] + noisemap[mask_]*np.sqrt(window[mask_])
         else:
-            nbar = density * hp.nside2pixarea(nside, degrees = True)
-            nbar_sr = density * (1/(4*np.pi**2/(129600))) #conversion factor from sq deg to sr. 1 deg2 = 4pi^2/129600 sr
-            ell = np.arange(0, lmax, 1)
-            cl_shot_noise = 1/nbar * np.ones_like(ell)
-            noise = hp.synfast(cl_shot_noise, nside = nside, pol = False, verbose = False)
-            delta_cont[mask_] = (delta[mask_]+1.0)*window[mask_] + 1/nbar *\
-                np.sqrt(window[mask_]) * noise[mask_]  - 1.0
+            delta_cont[mask_] = delta[mask_]*window[mask_]
         return delta_cont
 
     def fetch_window(self, ix):
