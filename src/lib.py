@@ -34,17 +34,18 @@ class GenSys:
         self.mask = np.zeros(self.npix, 'bool')
         self.mask[self.hpix] = True
 
-    def contaminate(self, ix, delta, mask, noisemap = None):
+    def contaminate(self, window, delta, mask, noisemap = None):
         """
 
         inputs:
-            ix: int, index of the window
+            #ix: int, index of the window
+            window: float array, selection function
             delta: float array, truth density contrast
             mask: bool array, mask for density contrast
             density : float, ELG number density, set to FDR value (per deg2)
             noise: boolean, whether to add noise to contaminated map or not
         """
-        window = self.fetch_window(ix)
+        #window = self.fetch_window(ix)
 
         mask_ = mask & self.mask
         delta_cont = np.zeros(self.npix)
@@ -53,7 +54,7 @@ class GenSys:
             delta_cont[mask_] = delta[mask_]*window[mask_] + noisemap[mask_]*np.sqrt(window[mask_])
         else:
             delta_cont[mask_] = delta[mask_]*window[mask_]
-        return delta_cont
+        return delta_cont, window
 
     def fetch_window(self, ix):
         """
