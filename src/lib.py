@@ -1,6 +1,3 @@
-
-
-
 import numpy as np
 import healpy as hp
 import fitsio as ft
@@ -73,3 +70,34 @@ class GenSys:
         window = np.zeros(self.npix)
         window[self.hpix] = wnn_ix
         return window
+
+#----
+#Functions written by Tanveer
+import pyccl as ccl
+def cgll(ell, bias, **cosmo_kwargs):
+    """Given a cosmology in pyccl generate clgg
+
+    Input
+    -----
+        b : linear bias
+    """
+
+    #define cosmology
+    cosmo = ccl.Cosmology(**cosmo_kwargs)
+
+    #read in dNdz
+    dNdzddeg2 = pd.read_csv("../dat/nz_blanc.txt", sep=",")
+    zmid = dNdzddeg2['Redshift_mid']
+    dndz = dNdzddeg2['dndz/deg^2'] * 14000
+    dn = dndz[:-1] * np.diff(zmid)  #redshift bin width
+
+    #set constant bias
+    b = bias*np.ones(len(zmid[:-1]))
+
+    #Create CCL tracer object for galaxy clustering
+    elg_ccl = ccl.NumberCountsTracer(cosmo, has_rsd=False, dndz=(zmid[:-1], dn), bias=(zmid[:-1],b))
+
+    #calculate theoretical Cls
+    cls_elg_th = ccl.angular_cl(cosmo, elg_ccl, elg_ccl, ell)
+
+    return ell, cls_elg_th
