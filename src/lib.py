@@ -31,7 +31,7 @@ class GenSys:
         self.mask = np.zeros(self.npix, 'bool')
         self.mask[self.hpix] = True
 
-    def contaminate(self, window, delta, mask, noisemap = None):
+    def contaminate(self, window, delta, mask, noisemap = None, additive = None):
         """
 
         inputs:
@@ -41,6 +41,7 @@ class GenSys:
             mask: bool array, mask for density contrast
             density : float, ELG number density, set to FDR value (per deg2)
             noise: boolean, whether to add noise to contaminated map or not
+            additive : boolean, whether to have an additive window component
         """
         #window = self.fetch_window(ix)
 
@@ -48,10 +49,15 @@ class GenSys:
         delta_cont = np.zeros(self.npix)
         delta_cont[:] = hp.UNSEEN
         if noisemap is not None:
-            delta_cont[mask_] = delta[mask_]*window[mask_] + noisemap[mask_]*np.sqrt(window[mask_])
+            if additive is not None:
+                delta_cont[mask_] = (1 + delta[mask_])*window[mask_] + \
+                    noisemap[mask_]*np.sqrt(window[mask_]) - additive[mask_]
+            else:
+                delta_cont[mask_] = delta[mask_]*window[mask_] + \
+                    noisemap[mask_]*np.sqrt(window[mask_])
         else:
             delta_cont[mask_] = delta[mask_]*window[mask_]
-        return delta_cont, window
+        return delta_cont
 
     def fetch_window(self, ix):
         """
@@ -74,11 +80,12 @@ class GenSys:
 #----
 #Functions written by Tanveer
 import pyccl as ccl
+import pandas as pd
+
 def cgll(ell, bias, **cosmo_kwargs):
     """Given a cosmology in pyccl generate clgg
 
-    Input
-    -----
+    Inputs:
         b : linear bias
     """
 
@@ -95,9 +102,10 @@ def cgll(ell, bias, **cosmo_kwargs):
     b = bias*np.ones(len(zmid[:-1]))
 
     #Create CCL tracer object for galaxy clustering
-    elg_ccl = ccl.NumberCountsTracer(cosmo, has_rsd=False, dndz=(zmid[:-1], dn), bias=(zmid[:-1],b))
+    elg_ccl = ccl.NumberCountsTracer(cosmo, has_rsd=False, dndz=(zmid[:-1], dn),
+        bias=(zmid[:-1],b))
 
     #calculate theoretical Cls
     cls_elg_th = ccl.angular_cl(cosmo, elg_ccl, elg_ccl, ell)
 
-    return ell, cls_elg_th
+    return cls_elg_th
