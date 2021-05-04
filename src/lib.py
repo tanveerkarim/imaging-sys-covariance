@@ -31,7 +31,8 @@ class GenSys:
         self.mask = np.zeros(self.npix, 'bool')
         self.mask[self.hpix] = True
 
-    def contaminate(self, window, delta, mask, noisemap = None, additive = None):
+    def contaminate(self, window, delta, mask, noisemap = None, additive = None,
+        boss = False):
         """
 
         inputs:
@@ -50,10 +51,18 @@ class GenSys:
         delta_cont[:] = hp.UNSEEN
         if noisemap is not None:
             if additive is not None:
-                delta_cont[mask_] = (1 + delta[mask_])*window[mask_] + \
+                if(boss):
+                    delta_cont[mask_] = (1 + delta[mask_])*window[mask_]/additive[mask_] + \
+                    noisemap[mask_]*np.sqrt(1/window[mask_]) - 1.
+                else:
+                    delta_cont[mask_] = (1 + delta[mask_])*window[mask_] + \
                     noisemap[mask_]*np.sqrt(window[mask_]) - additive[mask_]
             else:
-                delta_cont[mask_] = delta[mask_]*window[mask_] + \
+                if(boss):
+                    delta_cont[mask_] = delta[mask_] + \
+                    noisemap[mask_]*np.sqrt(1/window[mask_])
+                else:
+                    delta_cont[mask_] = delta[mask_]*window[mask_] + \
                     noisemap[mask_]*np.sqrt(window[mask_])
         else:
             delta_cont[mask_] = delta[mask_]*window[mask_]
@@ -109,3 +118,82 @@ def cgll(ell, bias, **cosmo_kwargs):
     cls_elg_th = ccl.angular_cl(cosmo, elg_ccl, elg_ccl, ell)
 
     return cls_elg_th
+
+import itertools
+def bin_mat(r=[],mat=[],r_bins=[]):
+    """Sukhdeep's Code to bins data and covariance arrays
+
+    Input:
+    -----
+        r  : array which will be used to bin data, e.g. ell values
+        mat : array or matrix which will be binned, e.g. Cl values
+        bins : array that defines the left edge of the bins,
+               bins is the same unit as r
+
+    Output:
+    ------
+        bin_center : array of mid-point of the bins, e.g. ELL values
+        mat_int : binned array or matrix
+    """
+
+    bin_center=0.5*(r_bins[1:]+r_bins[:-1])
+    n_bins=len(bin_center)
+    ndim=len(mat.shape)
+    mat_int=np.zeros([n_bins]*ndim,dtype='float64')
+    norm_int=np.zeros([n_bins]*ndim,dtype='float64')
+    bin_idx=np.digitize(r,r_bins)-1
+    r2=np.sort(np.unique(np.append(r,r_bins))) #this takes care of problems around bin edges
+    dr=np.gradient(r2)
+    r2_idx=[i for i in np.arange(len(r2)) if r2[i] in r]
+    dr=dr[r2_idx]
+    r_dr=r*dr
+
+    ls=['i','j','k','l']
+    s1=ls[0]
+    s2=ls[0]
+    r_dr_m=r_dr
+    for i in np.arange(ndim-1):
+        s1=s2+','+ls[i+1]
+        s2+=ls[i+1]
+        r_dr_m=np.einsum(s1+'->'+s2,r_dr_m,r_dr)#works ok for 2-d case
+
+    mat_r_dr=mat*r_dr_m
+    for indxs in itertools.product(np.arange(min(bin_idx),n_bins),repeat=ndim):
+        x={}#np.zeros_like(mat_r_dr,dtype='bool')
+        norm_ijk=1
+        mat_t=[]
+        for nd in np.arange(ndim):
+            slc = [slice(None)] * (ndim)
+            #x[nd]=bin_idx==indxs[nd]
+            slc[nd]=bin_idx==indxs[nd]
+            if nd==0:
+                mat_t=mat_r_dr[slc]
+            else:
+                mat_t=mat_t[slc]
+            norm_ijk*=np.sum(r_dr[slc[nd]])
+        if norm_ijk==0:
+            continue
+        mat_int[indxs]=np.sum(mat_t)/norm_ijk
+        norm_int[indxs]=norm_ijk
+    return bin_center,mat_int
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+def heatmap_plot(quantity, title, fsize, **kwargs ):
+    """Generates heatmap plots for a given quantity.
+
+    Inputs:
+        quantity (np 2D array) : 2D array for which heatmap to be plotted
+        title (str) : title of the plot
+        fsize (tuple) : figure size of form (x, y)
+    Returns:
+            heatmap plot
+    """
+    fs = 20 #fontsize
+
+    plt.figure(figsize = fsize)
+    sns.heatmap(quantity, cmap = 'seismic', vmin = -1, vmax = +1,
+    **kwargs)
+    plt.xlabel(r"$\ell$", fontsize = fs)
+    plt.ylabel(r"$\ell$", fontsize = fs)
+    plt.title(title, fontsize = fs)
