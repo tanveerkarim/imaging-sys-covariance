@@ -49,11 +49,12 @@ class GenSys:
         mask_ = mask & self.mask
         delta_cont = np.zeros(self.npix)
         delta_cont[:] = hp.UNSEEN
+
         if noisemap is not None:
             if additive is not None:
                 if(boss):
                     delta_cont[mask_] = (1 + delta[mask_])*window[mask_]/additive[mask_] + \
-                    noisemap[mask_]*np.sqrt(1/window[mask_]) - 1.
+                    noisemap[mask_]*np.sqrt(window[mask_]/additive[mask_]) - 1.
                 else:
                     delta_cont[mask_] = (1 + delta[mask_])*window[mask_] + \
                     noisemap[mask_]*np.sqrt(window[mask_]) - additive[mask_]
