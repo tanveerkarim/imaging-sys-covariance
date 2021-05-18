@@ -177,3 +177,48 @@ def bin_mat(r=[],mat=[],r_bins=[]):
         mat_int[indxs]=np.sum(mat_t)/norm_ijk
         norm_int[indxs]=norm_ijk
     return bin_center,mat_int
+
+#I/O of systematic maps
+def read_img_map(filename, nside=1024):
+    d = ft.read(filename)
+    m = np.zeros(12*nside*nside)
+    v = d['weight'] / np.median(d['weight']) # normalize by the median
+    v = v.clip(0.5, 2.0)                     # clip the extremes
+    v = v / v.mean()                         # normalize to one
+    m[d['hpix']] = v
+    return m
+
+def contaminate_map(F, delta, mask, noisemap = None, additive = None,
+    img_applied_data = False):
+    """
+    inputs:
+        F (float array) : selection function in healpy
+        delta (float array) :truth density map in healpy
+        mask (bool array) : mask for density map in healpy
+        noisemap (float array) : noise model for density map in healy
+        additive (boolean) : flag for additive window component
+        img_applied_data (boolean) : flag for applying systematics to data map
+                                    than random maps
+    """
+
+    delta_cont = np.zeros(delta.shape[0])
+    delta_cont[:] = hp.UNSEEN #default set to UNSEEN
+
+    if noisemap is not None: #if noise map provided
+        if additive is not None: #if additive component provided
+            if(img_applied_data): #if systematics applied to data
+                delta_cont[mask] = (F[mask]/additive[mask])*(1 + delta[mask]) + \
+                np.sqrt(F[mask]/additive[mask])*noisemap[mask] - 1. #EXP F
+            else:
+                delta_cont[mask] = F[mask]*(1 + delta[mask]) + \
+                np.sqrt(F[mask])*noisemap[mask] - additive[mask] #EXP C
+        else:
+            if(img_applied_data):
+                delta_cont[mask] = delta[mask] + \
+                np.sqrt(1/F[mask])*noisemap[mask] #EXP D and E
+            else:
+                delta_cont[mask] = F[mask]*delta[mask] + \
+                np.sqrt(F[mask])*noisemap[mask]
+    else:
+        delta_cont[mask] = F[mask]*delta[mask] #only true when img_applied_data
+    return delta_cont
