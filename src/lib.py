@@ -177,24 +177,3 @@ def bin_mat(r=[],mat=[],r_bins=[]):
         mat_int[indxs]=np.sum(mat_t)/norm_ijk
         norm_int[indxs]=norm_ijk
     return bin_center,mat_int
-
-import seaborn as sns
-import matplotlib.pyplot as plt
-def heatmap_plot(quantity, title, fsize, **kwargs ):
-    """Generates heatmap plots for a given quantity.
-
-    Inputs:
-        quantity (np 2D array) : 2D array for which heatmap to be plotted
-        title (str) : title of the plot
-        fsize (tuple) : figure size of form (x, y)
-    Returns:
-            heatmap plot
-    """
-    fs = 20 #fontsize
-
-    plt.figure(figsize = fsize)
-    sns.heatmap(quantity, cmap = 'seismic', vmin = -1, vmax = +1,
-    **kwargs)
-    plt.xlabel(r"$\ell$", fontsize = fs)
-    plt.ylabel(r"$\ell$", fontsize = fs)
-    plt.title(title, fontsize = fs)
