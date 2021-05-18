@@ -218,7 +218,57 @@ def contaminate_map(F, delta, mask, noisemap = None, additive = None,
                 np.sqrt(1/F[mask])*noisemap[mask] #EXP D and E
             else:
                 delta_cont[mask] = F[mask]*delta[mask] + \
-                np.sqrt(F[mask])*noisemap[mask]
+                np.sqrt(F[mask])*noisemap[mask] #EXP A and B 
     else:
         delta_cont[mask] = F[mask]*delta[mask] #only true when img_applied_data
     return delta_cont
+
+def cls_from_mock(cls_th, cls_shot_noise, F, mask, seed, LMAX, NSIDE = 1024, \
+    additive = None, img_applied_data = False):
+    """Generate a mock given conditions and calculate pseudo-Cls from the mock.
+
+    Inputs:
+        cls_th (np.array) : array of theory Cl values to be used to generate
+                            mock
+        cls_shot_noise (np.array) : array of Cl values to be used to generate
+                                    noise mock
+        F (np.array) : Imaging contaminant map from GenSys. Should be same size
+                        as NSIDE
+        mask (np.array) : Mask map. Should be same size as NSIDE
+        seed (int) : seed for mock generation
+        LMAX (int) : lmax to be calculated for pseudo Cl
+        NSIDE (int) : nside for healpy
+        additive (np.array) : array of average F map used for additive component
+                                experiments
+        img_applied_data (bool) : flag for applying systematics to data map
+                                    than random maps
+
+
+    Returns:
+        cls_obs (np.array) : array of pseudo-Cls based on generated mock. Not
+                            corrected for fsky
+    """
+
+    #generate overdensity signal mock
+    np.random.seed(seed)
+    delta_g = hp.synfast(cls_th,
+        nside = NSIDE, lmax = LMAX, pol=False, verbose=False)
+
+    #generate noise mock
+    np.random.seed(2*seed + 4029) #random different seed for noise
+    noise_g = hp.synfast(cls_shot_noise,
+        nside = NSIDE, lmax = LMAX, pol = False, verbose = False)
+
+    #add img sys
+    if additive is not None:
+        delta_c = contaminate_map(F = F, delta = delta_g, mask = mask,
+        noisemap = noise_g, additive = additive,
+        img_applied_data = img_applied_data)
+    else:
+        delta_c = contaminate_map(F = F, delta = delta_g, mask = mask,
+        noisemap = noise_g, img_applied_data = img_applied_data)
+
+    #calcuate pseudo-Cl
+    cls_obs = hp.anafast(delta_c, lmax = LMAX -1, pol = False)
+
+    return cls_obs
