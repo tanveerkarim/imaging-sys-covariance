@@ -38,7 +38,7 @@ A_s = 2.083e-09
 n_s = 0.9649
 b1 = 1.75
 
-NMOCKS = 50
+NMOCKS = 2
 tol = 0.8 #define tolerance between window and mask divergence
 
 #noise parameters
@@ -124,14 +124,14 @@ for i in range(NMOCKS):
                 mask = mask, seed = 67 + 2*i, LMAX = LMAX, additive = additive,
                 img_applied_data = img_applied_data)
 
-    if((i % (NMOCKS//10)) == 0):
-        print(i)
+    #if((i % (NMOCKS//10)) == 0):
+#        print(i)
 
 #first order correction to pCls; fsky and noise_window
 if((expname == 'A') | (expname == 'B') | (expname == 'C')):
-    cls_obs = (cls - noise_window)/fsky
+    cls_obs = (cls_obs - noise_window[:,np.newaxis])/fsky[:,np.newaxis]
 else:
-    cls_obs = cls/fsky - noise_window
+    cls_obs = cls/fsky[:,np.newaxis] - noise_window[:,np.newaxis]
 
 #store values
 np.save("../dat/pCls/1000mocks/pCls_" + expname + ".npy", cls_obs)
