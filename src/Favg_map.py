@@ -20,10 +20,10 @@ mask[dr_elg_ran != 0] = 1 #good pixels are 1
 mask = mask.astype("bool")
 
 #store values for diagnostics
-Fmean_pre = np.zeros(nselfunc) #mean of sel funcs prior norm correction
-Fmean_post = np.zeros(nselfunc) #mean of sel funcs post norm correction
-invFmean_pre = np.zeros(nselfunc) #mean of sel funcs prior norm correction
-invFmean_post = np.zeros(nselfunc) #mean of sel funcs post norm correction
+Fmean_pre = np.zeros(NSELFUNC) #mean of sel funcs prior norm correction
+Fmean_post = np.zeros(NSELFUNC) #mean of sel funcs post norm correction
+invFmean_pre = np.zeros(NSELFUNC) #mean of sel funcs prior norm correction
+invFmean_post = np.zeros(NSELFUNC) #mean of sel funcs post norm correction
 Favg_map = np.zeros(12*NSIDE**2) #average selection function
 
 for i in range(NSELFUNC):
