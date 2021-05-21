@@ -38,7 +38,7 @@ A_s = 2.083e-09
 n_s = 0.9649
 b1 = 1.75
 
-NMOCKS = 2
+NMOCKS = 20
 tol = 0.8 #define tolerance between window and mask divergence
 
 #noise parameters
