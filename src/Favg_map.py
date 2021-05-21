@@ -2,15 +2,18 @@
 
 import numpy as np
 import healpy as hp
-from astropy.io import fits
-import pyccl as ccl
 
 import sys
 sys.path.insert(1, '../src/')
 from lib import *
 
+#list of all selection function fits files
+import glob
+flist = glob.glob("/home/tanveer/Documents/desi-planck-cross-corr/imaging-sys-covariance/dat/windows_1000mocks/*fits")
+
 #parameters
 NSELFUNC = 1000 #number of selection functions
+NSIDE = 1024
 tol = 0.8 #threshold for 1/F mean calculation
 
 #read in random for mask generation
