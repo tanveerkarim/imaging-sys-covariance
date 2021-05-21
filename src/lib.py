@@ -218,7 +218,7 @@ def contaminate_map(F, delta, mask, noisemap = None, additive = None,
                 np.sqrt(1/F[mask])*noisemap[mask] #EXP D and E
             else:
                 delta_cont[mask] = F[mask]*delta[mask] + \
-                np.sqrt(F[mask])*noisemap[mask] #EXP A and B 
+                np.sqrt(F[mask])*noisemap[mask] #EXP A and B
     else:
         delta_cont[mask] = F[mask]*delta[mask] #only true when img_applied_data
     return delta_cont
@@ -251,11 +251,13 @@ def cls_from_mock(cls_th, cls_shot_noise, F, mask, seed, LMAX, NSIDE = 1024, \
 
     #generate overdensity signal mock
     np.random.seed(seed)
+    print(seed)
     delta_g = hp.synfast(cls_th,
         nside = NSIDE, lmax = LMAX, pol=False, verbose=False)
 
     #generate noise mock
     np.random.seed(2*seed + 4029) #random different seed for noise
+    print(2*seed + 4029)
     noise_g = hp.synfast(cls_shot_noise,
         nside = NSIDE, lmax = LMAX, pol = False, verbose = False)
 
