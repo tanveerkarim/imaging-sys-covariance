@@ -38,7 +38,7 @@ A_s = 2.083e-09
 n_s = 0.9649
 b1 = 1.75
 
-NMOCKS = 20
+NMOCKS = 1
 tol = 0.8 #define tolerance between window and mask divergence
 
 #noise parameters
@@ -74,7 +74,7 @@ fsky = np.zeros(NMOCKS)
 #set const. fsky and noise_window; fsky same in the first three models
 if((expname == 'A')):
     fsky = np.sum(mask)/mask.shape[0] * np.ones(NMOCKS)
-    noise_window = np.mean(Favg_map)*1/nbar_sr
+    noise_window = np.mean(Favg_map)*1/nbar_sr*np.ones(NMOCKS)
     tmpF = Favg_map #since fixed window set outside loop
     additive = None
     img_applied_data = False
@@ -83,8 +83,8 @@ elif((expname == 'B') | (expname == 'C')):
     img_applied_data = False
 elif(expname == 'D'):
     mask = mask & (Favg_map > tol)
-    fsky = np.sum(mask).mask.shape[0]
-    noise_window = np.mean(1/Favg_map[mask]) * 1/nbar_sr
+    fsky = np.sum(mask).mask.shape[0] * np.ones(NMOCKS)
+    noise_window = np.mean(1/Favg_map[mask]) * 1/nbar_sr * np.ones(NMOCKS)
     tmpF = Favg_map #since fixed window set outside loop
 
 #model conditions; window applied to data vs random
@@ -128,12 +128,15 @@ for i in range(NMOCKS):
 #        print(i)
 
 #first order correction to pCls; fsky and noise_window
+print(fsky.shape)
+print(noise_window.shape)
+print(cls_obs.shape)
 if((expname == 'A') | (expname == 'B') | (expname == 'C')):
     cls_obs = (cls_obs - noise_window[:,np.newaxis])/fsky[:,np.newaxis]
 else:
     cls_obs = cls/fsky[:,np.newaxis] - noise_window[:,np.newaxis]
 
 #store values
-np.save("../dat/pCls/1000mocks/pCls_" + expname + ".npy", cls_obs)
-np.save("../dat/pCls/1000mocks/noise_window_" + expname + ".npy", noise_window)
-np.save("../dat/pCls/1000mocks/fsky_" + expname + ".npy", fsky)
+#np.save("../dat/pCls/1000mocks/pCls_" + expname + ".npy", cls_obs)
+#np.save("../dat/pCls/1000mocks/noise_window_" + expname + ".npy", noise_window)
+#np.save("../dat/pCls/1000mocks/fsky_" + expname + ".npy", fsky)
