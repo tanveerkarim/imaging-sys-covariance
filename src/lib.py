@@ -251,13 +251,11 @@ def cls_from_mock(cls_th, cls_shot_noise, F, mask, seed, LMAX, NSIDE = 1024, \
 
     #generate overdensity signal mock
     np.random.seed(seed)
-    print(seed)
     delta_g = hp.synfast(cls_th,
         nside = NSIDE, lmax = LMAX, pol=False, verbose=False)
 
     #generate noise mock
     np.random.seed(2*seed + 4029) #random different seed for noise
-    print(2*seed + 4029)
     noise_g = hp.synfast(cls_shot_noise,
         nside = NSIDE, lmax = LMAX, pol = False, verbose = False)
 
@@ -274,3 +272,43 @@ def cls_from_mock(cls_th, cls_shot_noise, F, mask, seed, LMAX, NSIDE = 1024, \
     cls_obs = hp.anafast(delta_c, lmax = LMAX -1, pol = False)
 
     return cls_obs
+
+#cumulative SN calculation
+def matrix_cut(mat=[],x=[]):
+    """
+    mat : covariance matrix
+    x : l cuts to be applied to mat
+    """
+    m=mat[x]
+    N=sum(x)
+    m2=np.zeros((N,N))
+    j=0
+    for i in m:
+        m2[j]=i[x]
+        j=j+1
+    return m2
+
+def SN_cum(cov=[],lb=[],cl=[],diag=False,lmin=2,lmax=1e4,use_hartlap=False,nsim=1000):
+    """
+    cov : covariance matrix
+    lb : bin centres
+    cl : binned cl array
+    """
+
+    sni=np.zeros_like(lb)
+    for i in np.arange(len(lb)):
+        if lb[i]<lmin or lb[i]>lmax:
+            continue
+        x=lb<=lb[i]
+        x*=lb>lmin
+        cov2_cut=matrix_cut(mat=cov,x=x)
+        if diag:
+            cov2_cut=np.diag(np.diag(cov2_cut))
+        cov2_cut_inv=np.linalg.inv(cov2_cut)
+
+        cl_i=cl[x]
+        SN2=cl_i@cov2_cut_inv@cl_i
+        if use_hartlap:
+            SN2*=(nsim-2-x.sum())/(nsim-1)
+        sni[i]=SN2
+    return np.sqrt(sni)
