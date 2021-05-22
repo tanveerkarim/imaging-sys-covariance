@@ -6,8 +6,6 @@ import healpy as hp
 from astropy.io import fits
 import pyccl as ccl
 
-from tqdm import tqdm #for timing
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 plt.style.use("seaborn-notebook")
@@ -38,7 +36,7 @@ A_s = 2.083e-09
 n_s = 0.9649
 b1 = 1.75
 
-NMOCKS = 1
+NMOCKS = 1000
 tol = 0.8 #define tolerance between window and mask divergence
 
 #noise parameters
@@ -64,8 +62,10 @@ cls_elg_th = cgll(ell = ell, bias = b1, Omega_c = Omega_c,
 
 ##MAIN PART OF THE CODE##
 
-print("Which model do you want to calculate?")
-expname = input() #Look at notebook for definitions
+#print("Which model do you want to calculate?")
+#expname = input() #Look at notebook for definitions
+expname = sys.argv[1]
+print("Running Model " + expname)
 
 cls_obs = np.zeros((NMOCKS, LMAX)) #pCl values
 noise_window = np.zeros(NMOCKS) #selection function noise
@@ -83,7 +83,7 @@ elif((expname == 'B') | (expname == 'C')):
     img_applied_data = False
 elif(expname == 'D'):
     mask = mask & (Favg_map > tol)
-    fsky = np.sum(mask).mask.shape[0] * np.ones(NMOCKS)
+    fsky = np.sum(mask)/mask.shape[0] * np.ones(NMOCKS)
     noise_window = np.mean(1/Favg_map[mask]) * 1/nbar_sr * np.ones(NMOCKS)
     tmpF = Favg_map #since fixed window set outside loop
 
@@ -124,19 +124,16 @@ for i in range(NMOCKS):
                 mask = mask, seed = 67 + 2*i, LMAX = LMAX, additive = additive,
                 img_applied_data = img_applied_data)
 
-    #if((i % (NMOCKS//10)) == 0):
-#        print(i)
+    if((i % (100)) == 0):
+        print(i)
 
 #first order correction to pCls; fsky and noise_window
-print(fsky.shape)
-print(noise_window.shape)
-print(cls_obs.shape)
 if((expname == 'A') | (expname == 'B') | (expname == 'C')):
     cls_obs = (cls_obs - noise_window[:,np.newaxis])/fsky[:,np.newaxis]
 else:
-    cls_obs = cls/fsky[:,np.newaxis] - noise_window[:,np.newaxis]
+    cls_obs = cls_obs/fsky[:,np.newaxis] - noise_window[:,np.newaxis]
 
 #store values
-#np.save("../dat/pCls/1000mocks/pCls_" + expname + ".npy", cls_obs)
-#np.save("../dat/pCls/1000mocks/noise_window_" + expname + ".npy", noise_window)
-#np.save("../dat/pCls/1000mocks/fsky_" + expname + ".npy", fsky)
+np.save("../dat/pCls/1000mocks/pCls_" + expname + ".npy", cls_obs)
+np.save("../dat/pCls/1000mocks/noise_window_" + expname + ".npy", noise_window)
+np.save("../dat/pCls/1000mocks/fsky_" + expname + ".npy", fsky)
