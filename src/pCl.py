@@ -68,23 +68,21 @@ expname = sys.argv[1]
 print("Running Model " + expname)
 
 cls_obs = np.zeros((NMOCKS, LMAX)) #pCl values
-noise_window = np.zeros(NMOCKS) #selection function noise
+nl = np.zeros(NMOCKS) #selection function noise
 fsky = np.zeros(NMOCKS)
 
-#set const. fsky and noise_window; fsky same in the first three models
+#set const. fsky and nl; fsky same in the first three models
 if((expname == 'A')):
     fsky = np.sum(mask)/mask.shape[0] * np.ones(NMOCKS)
-    noise_window = np.mean(Favg_map)*1/nbar_sr*np.ones(NMOCKS)
+    nl = np.mean(Favg_map)*1/nbar_sr*np.ones(NMOCKS)
     tmpF = Favg_map #since fixed window set outside loop
     additive = None
-    img_applied_data = False
 elif((expname == 'B') | (expname == 'C')):
     fsky = np.sum(mask)/mask.shape[0] * np.ones(NMOCKS)
-    img_applied_data = False
 elif(expname == 'D'):
     mask = mask & (Favg_map > tol)
     fsky = np.sum(mask)/mask.shape[0] * np.ones(NMOCKS)
-    noise_window = np.mean(1/Favg_map[mask]) * 1/nbar_sr * np.ones(NMOCKS)
+    nl = np.mean(1/Favg_map[mask]) * 1/nbar_sr * np.ones(NMOCKS)
     tmpF = Favg_map #since fixed window set outside loop
 
 #model conditions; window applied to data vs random
@@ -103,7 +101,7 @@ else:
 for i in range(NMOCKS):
 
     #read in sel. function
-    if((expname != 'A') | (expname != 'D')):
+    if((expname != 'A') & (expname != 'D')):
         tmpF = read_img_map(flist[i])
 
         #renormalize selection function such that <F> = 1.
@@ -114,9 +112,9 @@ for i in range(NMOCKS):
     if((expname == 'E') | (expname == 'F')):
         mask = mask & (tmpF > tol)
         fsky[i] = np.sum(mask)/mask.shape[0]
-        noise_window[i] = np.mean(1/tmpF[mask]) * 1/nbar_sr
+        nl[i] = np.mean(1/tmpF[mask]) * 1/nbar_sr
     elif((expname == 'B') | (expname == 'C')):
-        noise_window[i] = np.mean(tmpF)*1/nbar_sr
+        nl[i] = np.mean(tmpF)*1/nbar_sr
 
     #calculate pCl
     cls_obs[i] = cls_from_mock(cls_th = cls_elg_th,
@@ -127,13 +125,13 @@ for i in range(NMOCKS):
     if((i % (100)) == 0):
         print(i)
 
-#first order correction to pCls; fsky and noise_window
+#first order correction to pCls; fsky and nl
 if((expname == 'A') | (expname == 'B') | (expname == 'C')):
-    cls_obs = (cls_obs - noise_window[:,np.newaxis])/fsky[:,np.newaxis]
+    cls_obs = (cls_obs - nl[:,np.newaxis])/fsky[:,np.newaxis]
 else:
-    cls_obs = cls_obs/fsky[:,np.newaxis] - noise_window[:,np.newaxis]
+    cls_obs = cls_obs/fsky[:,np.newaxis] - nl[:,np.newaxis]
 
 #store values
 np.save("../dat/pCls/1000mocks/pCls_" + expname + ".npy", cls_obs)
-np.save("../dat/pCls/1000mocks/noise_window_" + expname + ".npy", noise_window)
+np.save("../dat/pCls/1000mocks/noise_window_" + expname + ".npy", nl)
 np.save("../dat/pCls/1000mocks/fsky_" + expname + ".npy", fsky)
