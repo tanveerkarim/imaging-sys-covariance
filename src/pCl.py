@@ -11,54 +11,39 @@ import seaborn as sns
 plt.style.use("seaborn-notebook")
 
 import sys
-sys.path.insert(1, '/home/tanveer/Documents/desi-planck-cross-corr/imaging-sys-covariance/src/')
+sys.path.insert(1, '/home/tkarim/imaging-sys-covariance/src/')
 from lib import *
+import params as pm
 
 #list of all selection function fits files
 import glob
-flist = glob.glob("/home/tanveer/Documents/desi-planck-cross-corr/imaging-sys-covariance/dat/windows_1000mocks/*fits")
+flist = glob.glob("/home/tkarim/imaging-sys-covariance/dat/windows/*fits")
 
 #plotting parameters
 fs = 20 #font size
 fsize = (10, 7) #figure size
 
-#cosmology and simulation parameters
-NSIDE = 1024
-LMIN = 100;
-LMAX = 3 * NSIDE - 1
-ell = np.arange(0, LMAX, 1)
-ELL = np.logspace(0, np.log10(LMAX), 10) #for binning
-
-h = 0.6736
-Omega_c = 0.12/h**2
-Omega_b = 0.02237/h**2
-A_s = 2.083e-09
-n_s = 0.9649
-b1 = 1.75
-
-NMOCKS = 1000
-tol = 0.8 #define tolerance between window and mask divergence
-
 #noise parameters
 nbar_sqdeg = 2400 #per deg2
 nbar_sr = (np.pi/180)**(-2) * nbar_sqdeg #conversion factor from sq deg to sr
-cls_shot_noise = 1/nbar_sr * np.ones_like(ell)
+cls_shot_noise = 1/nbar_sr * np.ones_like(pm.ell)
 
 #read in random and degrade it to generate mask
 dr_elg_ran = np.load("../dat/elg_ran1024.npy")
 #dr_elg_ran64 = hp.ud_grade(dr_elg_ran, 64) #make it very coarse to remove weird effects in the middle
-#dr_elg_ran_final = hp.ud_grade(dr_elg_ran64, NSIDE) #leave as be for stellar masks
+#dr_elg_ran_final = hp.ud_grade(dr_elg_ran64, pm.NSIDE) #leave as be for stellar masks
 
 mask = np.copy(dr_elg_ran)
 mask[dr_elg_ran != 0] = 1 #good pixels are 1
 mask = mask.astype("bool")
 
 #import avg map
-Favg_map = np.load("../dat/windows_1000mocks/Favg/Favg_map.npy")
+Favg_map = np.load("../dat/windows/Favg/Favg_map_unpickled.npy")
 
 #set theory Cls
-cls_elg_th = cgll(ell = ell, bias = b1, Omega_c = Omega_c,
-                    Omega_b = Omega_b, h = h, A_s = A_s, n_s = n_s)
+cls_elg_th = cgll(ell = pm.ell, bias = pm.b1, Omega_c = pm.Omega_c,
+                    Omega_b = pm.Omega_b, h = pm.h, A_s = pm.A_s, 
+                    n_s = pm.n_s)
 
 ##MAIN PART OF THE CODE##
 
@@ -67,22 +52,22 @@ cls_elg_th = cgll(ell = ell, bias = b1, Omega_c = Omega_c,
 expname = sys.argv[1]
 print("Running Model " + expname)
 
-cls_obs = np.zeros((NMOCKS, LMAX)) #pCl values
-nl = np.zeros(NMOCKS) #selection function noise
-fsky = np.zeros(NMOCKS)
+cls_obs = np.zeros((pm.NMOCKS, pm.LMAX)) #pCl values
+nl = np.zeros(pm.NMOCKS) #selection function noise
+fsky = np.zeros(pm.NMOCKS)
 
 #set const. fsky and nl; fsky same in the first three models
 if((expname == 'A')):
-    fsky = np.sum(mask)/mask.shape[0] * np.ones(NMOCKS)
-    nl = np.mean(Favg_map)*1/nbar_sr*np.ones(NMOCKS)
+    fsky = np.sum(mask)/mask.shape[0] * np.ones(pm.NMOCKS)
+    nl = np.mean(Favg_map)*1/nbar_sr*np.ones(pm.NMOCKS)
     tmpF = Favg_map #since fixed window set outside loop
     additive = None
 elif((expname == 'B') | (expname == 'C')):
-    fsky = np.sum(mask)/mask.shape[0] * np.ones(NMOCKS)
+    fsky = np.sum(mask)/mask.shape[0] * np.ones(pm.NMOCKS)
 elif(expname == 'D'):
-    mask = mask & (Favg_map > tol)
-    fsky = np.sum(mask)/mask.shape[0] * np.ones(NMOCKS)
-    nl = np.mean(1/Favg_map[mask]) * 1/nbar_sr * np.ones(NMOCKS)
+    mask = mask & (Favg_map > pm.tol)
+    fsky = np.sum(mask)/mask.shape[0] * np.ones(pm.NMOCKS)
+    nl = np.mean(1/Favg_map[mask]) * 1/nbar_sr * np.ones(pm.NMOCKS)
     tmpF = Favg_map #since fixed window set outside loop
 
 #model conditions; window applied to data vs random
@@ -98,7 +83,7 @@ else:
     additive = None
 
 #loop over mocks to calculate pCl
-for i in range(NMOCKS):
+for i in range(pm.NMOCKS):
 
     #read in sel. function
     if((expname != 'A') & (expname != 'D')):
@@ -110,7 +95,7 @@ for i in range(NMOCKS):
 
     #set mask for E and F
     if((expname == 'E') | (expname == 'F')):
-        mask = mask & (tmpF > tol)
+        mask = mask & (tmpF > pm.tol)
         fsky[i] = np.sum(mask)/mask.shape[0]
         nl[i] = np.mean(1/tmpF[mask]) * 1/nbar_sr
     elif((expname == 'B') | (expname == 'C')):
@@ -119,7 +104,7 @@ for i in range(NMOCKS):
     #calculate pCl
     cls_obs[i] = cls_from_mock(cls_th = cls_elg_th,
                 cls_shot_noise=cls_shot_noise, F = tmpF,
-                mask = mask, seed = 67 + 2*i, LMAX = LMAX, additive = additive,
+                mask = mask, seed = 67 + 2*i, LMAX = pm.LMAX, additive = additive,
                 img_applied_data = img_applied_data)
 
     if((i % (100)) == 0):
