@@ -314,38 +314,6 @@ def SN_cum(cov=[],lb=[],cl=[],diag=False,lmin=2,lmax=1e4,use_hartlap=False,nsim=
     return np.sqrt(sni)
 
 #Theory pCl functions
-def cmb_bins_here(zs=1090,l=None,use_window=use_window,unit_win=False,nside=1024,zmax=2.45):
-    """
-    unit_win = boolean mask 
-    nside = 2048; same as sims
-    This function prepares the cmb lensing data into format required for input into skylens for theory predictions.
-    """
-    ztomo_bins_dict={}
-    ztomo_bins_dict[0]={}
-
-    ztomo_bins_dict=zbin_pz_norm(ztomo_bins_dict=ztomo_bins_dict,
-                                 tomo_bin_indx=0,zbin_centre=np.atleast_1d(zs),
-                                 p_zspec=np.atleast_1d(1),
-                   ns=0,bg1=1)
-    ztomo_bins_dict['n_bins']=1 #easy to remember the counts
-    ztomo_bins_dict['zmax']=np.atleast_1d([zmax])
-    #ztomo_bins_dict['zp_sigma']=0
-    #ztomo_bins_dict['zp_bias']=0
-    ztomo_bins_dict['nz']=1
-
-    SN_read=np.genfromtxt('/mnt/store1/tkarim/cmb_lensing/data/MV/nlkk.dat',
-                          names=('l','nl','nl2'))  #shot noise
-    SN_intp=interp1d(SN_read['l'],SN_read['nl'],bounds_error=False, fill_value=0)      #FIXME: make sure using the correct noise power spectra.
-    SN=SN_intp(l)
-    SN *= 0 #DON'T DO THIS WHEN USING REAL DATA
-#     SN=np.ones_like(l)
-    ztomo_bins_dict['SN']={}
-    ztomo_bins_dict['SN']['kappa']=SN.reshape(len(SN),1,1)
-    if use_window:
-        ztomo_bins_dict=set_window_here(ztomo_bins_dict=ztomo_bins_dict,
-                                   nside=nside, cmb=True)
-    return ztomo_bins_dict
-
 def set_window_here(ztomo_bins_dict={}, nside=1024, mask = None, unit_win=False, cmb=False):
     """
         This function sets the window functions for the datasets. 
@@ -363,6 +331,7 @@ def set_window_here(ztomo_bins_dict={}, nside=1024, mask = None, unit_win=False,
             #window_map = window_map.astype(np.float64)
             #window_map_noise = window_map
             #mask = cl_map
+            print("cmb")
         else:
             window_map=np.load("/home/tkarim/imaging-sys-covariance/dat/windows/Favg/Favg_map_unpickled.npy") #randoms are the window function.
             #window_map=np.load("/mnt/store1/boryanah/AbacusSummit_base_c000_ph006/light_cones/mask_edges_ring_2048.npy") #randoms are the window function.
@@ -496,7 +465,7 @@ def source_tomo_bins(zphoto_bin_centre=None,p_zphoto=None,ntomo_bins=None,ns=26,
         ztomo_bins_dict=set_window_here(ztomo_bins_dict=ztomo_bins_dict,nside=nside, unit_win=False)
     return ztomo_bins_dict
 
-def DESI_elg_bins(ntomo_bins=1, f_sky=0.3,nside=256,use_window=use_window, bg1=1, 
+def DESI_elg_bins(ntomo_bins=1, f_sky=0.3,nside=256,use_window=True, bg1=1, 
                        l=None, mag_fact=0,ztomo_bins=None,**kwargs):
 
     home='/home/tkarim/'
