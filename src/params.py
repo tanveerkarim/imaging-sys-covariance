@@ -11,7 +11,7 @@ NMOCKS = 1000
 #Fourier Space definitions
 NSIDE = 1024
 LMIN = 100
-LMAX = 3 * NSIDE - 1
+LMAX = 2 * NSIDE
 ell = np.arange(0, LMAX, 1)
 ELL = np.logspace(0, np.log10(LMAX), 10)
 
