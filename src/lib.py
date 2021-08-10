@@ -188,43 +188,56 @@ def read_img_map(filename, nside=1024):
     m[d['hpix']] = v
     return m
 
-def contaminate_map(F, delta, mask, noisemap = None, additive = None,
-    img_applied_data = False):
+def contaminate_map(F, delta, mask, expname, noisemap = None, additive = None):
     """
     inputs:
         F (float array) : selection function in healpy
         delta (float array) :truth density map in healpy
         mask (bool array) : mask for density map in healpy
+        expname (str) : experiment name
         noisemap (float array) : noise model for density map in healy
-        additive (boolean) : flag for additive window component
-        img_applied_data (boolean) : flag for applying systematics to data map
+        additive (healpy map, optional) : additive window component
+        divide_window (boolean) : flag for applying systematics to data map
                                     than random maps
     """
 
     delta_cont = np.zeros(delta.shape[0])
     delta_cont[:] = hp.UNSEEN #default set to UNSEEN
-
-    if noisemap is not None: #if noise map provided
-        if additive is not None: #if additive component provided
-            if(img_applied_data): #if systematics applied to data
-                delta_cont[mask] = (F[mask]/additive[mask])*(1 + delta[mask]) + \
-                np.sqrt(F[mask]/additive[mask])*noisemap[mask] - 1. #EXP F
-            else:
-                delta_cont[mask] = F[mask]*(1 + delta[mask]) + \
-                np.sqrt(F[mask])*noisemap[mask] - additive[mask] #EXP C
-        else:
-            if(img_applied_data):
-                delta_cont[mask] = delta[mask] + \
-                np.sqrt(1/F[mask])*noisemap[mask] #EXP D and E
-            else:
-                delta_cont[mask] = F[mask]*delta[mask] + \
-                np.sqrt(F[mask])*noisemap[mask] #EXP A and B
+    
+    if((expname == 'A') | (expname == 'B')):
+        delta_cont[mask] = F[mask]*delta[mask] + np.sqrt(F[mask])*noisemap[mask]
+    elif(expname == 'C'):
+        delta_cont[mask] = F[mask]*(1 + delta[mask]) + np.sqrt(F[mask])*noisemap[mask] - additive[mask]
+    elif(expname == 'D'):
+        delta_cont[mask] = delta[mask] + np.sqrt(1/F[mask])*noisemap[mask]
+    elif(expname == 'E'):
+        delta_cont[mask] = F[mask]/additive[mask]*delta[mask] + np.sqrt(1/F[mask])*noisemap[mask]
+    elif(expname == 'F'):
+        delta_cont[mask] = F[mask]/additive[mask](1. + delta[mask]) + (np.sqrt(F[mask])/additive[mask])*noisemap[mask] - 1
     else:
-        delta_cont[mask] = F[mask]*delta[mask] #only true when img_applied_data
+        raise ValueError("Wrong experiment name entered.")
+        
+    #if noisemap is not None: #if noise map provided
+    #    if additive is not None: #if additive component provided
+    #        if(divide_window): #if systematics applied to data
+    #            delta_cont[mask] = (F[mask]/additive[mask])*(1 + delta[mask]) + \
+    #            (np.sqrt(F[mask])/additive[mask])*noisemap[mask] - 1. #EXP F
+    #        else:
+    #            delta_cont[mask] = F[mask]*(1 + delta[mask]) + \
+    #            np.sqrt(F[mask])*noisemap[mask] - additive[mask] #EXP C
+    #    else:
+    #        if(divide_window):
+    #            delta_cont[mask] = delta[mask] + \
+    #            np.sqrt(1/F[mask])*noisemap[mask] #EXP D and E
+    #        else:
+    #            delta_cont[mask] = F[mask]*delta[mask] + \
+    #            np.sqrt(F[mask])*noisemap[mask] #EXP A and B
+    #else:
+    #    delta_cont[mask] = F[mask]*delta[mask] #only true when img_applied_data
     return delta_cont
 
 def cls_from_mock(cls_th, cls_shot_noise, F, mask, seed, LMAX, NSIDE = 1024, \
-    additive = None, img_applied_data = False):
+    additive = None, divide_window = False):
     """Generate a mock given conditions and calculate pseudo-Cls from the mock.
 
     Inputs:
@@ -240,7 +253,7 @@ def cls_from_mock(cls_th, cls_shot_noise, F, mask, seed, LMAX, NSIDE = 1024, \
         NSIDE (int) : nside for healpy
         additive (np.array) : array of average F map used for additive component
                                 experiments
-        img_applied_data (bool) : flag for applying systematics to data map
+        divide_window (bool) : flag for applying systematics to data map
                                     than random maps
 
 
@@ -250,12 +263,13 @@ def cls_from_mock(cls_th, cls_shot_noise, F, mask, seed, LMAX, NSIDE = 1024, \
     """
 
     #generate overdensity signal mock
+    #print(seed)
     np.random.seed(seed)
     delta_g = hp.synfast(cls_th,
         nside = NSIDE, lmax = LMAX, pol=False, verbose=False)
 
     #generate noise mock
-    np.random.seed(2*seed + 4029) #random different seed for noise
+    np.random.seed(2*seed) #random different seed for noise
     noise_g = hp.synfast(cls_shot_noise,
         nside = NSIDE, lmax = LMAX, pol = False, verbose = False)
 
@@ -263,10 +277,10 @@ def cls_from_mock(cls_th, cls_shot_noise, F, mask, seed, LMAX, NSIDE = 1024, \
     if additive is not None:
         delta_c = contaminate_map(F = F, delta = delta_g, mask = mask,
         noisemap = noise_g, additive = additive,
-        img_applied_data = img_applied_data)
+        divide_window = divide_window)
     else:
         delta_c = contaminate_map(F = F, delta = delta_g, mask = mask,
-        noisemap = noise_g, img_applied_data = img_applied_data)
+        noisemap = noise_g, divide_window = divide_window)
 
     #calcuate pseudo-Cl
     cls_obs = hp.anafast(delta_c, lmax = LMAX -1, pol = False)
