@@ -21,3 +21,6 @@ mask = np.load("../dat/elg_ran1024.npy")
 mask[mask != 0] = 1 #good pixels are 1
 mask = mask.astype("bool")
 fsky = np.sum(mask)/mask.size
+
+#linear bias
+b1 = 1.75
