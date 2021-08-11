@@ -234,7 +234,7 @@ def contaminate_map(expname, F, delta, mask, noisemap = None, additive = None):
     #    delta_cont[mask] = F[mask]*delta[mask] #only true when img_applied_data
     return delta_cont
 
-def cls_from_mock(expname, cls_th, cls_shot_noise, F, mask, seed, LMAX, NSIDE = 1024, \
+def cls_from_mock(expname, cls_th, cls_shot_noise, F, mask, seed, NSIDE = 1024, \
     additive = None):
     """Generate a mock given conditions and calculate pseudo-Cls from the mock.
 
@@ -248,7 +248,6 @@ def cls_from_mock(expname, cls_th, cls_shot_noise, F, mask, seed, LMAX, NSIDE = 
                         as NSIDE
         mask (np.array) : Mask map. Should be same size as NSIDE
         seed (int) : seed for mock generation
-        LMAX (int) : lmax to be calculated for pseudo Cl
         NSIDE (int) : nside for healpy
         additive (np.array) : array of average F map used for additive component
                                 experiments
@@ -262,12 +261,12 @@ def cls_from_mock(expname, cls_th, cls_shot_noise, F, mask, seed, LMAX, NSIDE = 
     #print(seed)
     np.random.seed(seed)
     delta_g = hp.synfast(cls_th,
-        nside = NSIDE, lmax = LMAX, pol=False, verbose=False)
+        nside = NSIDE, lmax = 3*NSIDE-1, pol=False, verbose=False)
 
     #generate noise mock
     np.random.seed(2*seed) #random different seed for noise
     noise_g = hp.synfast(cls_shot_noise,
-        nside = NSIDE, lmax = LMAX, pol = False, verbose = False)
+        nside = NSIDE, lmax = 3*NSIDE-1, pol = False, verbose = False)
 
     #add img sys
     delta_c = contaminate_map(expname = expname, F = F, delta = delta_g, 
