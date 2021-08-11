@@ -188,22 +188,20 @@ def read_img_map(filename, nside=1024):
     m[d['hpix']] = v
     return m
 
-def contaminate_map(F, delta, mask, expname, noisemap = None, additive = None):
+def contaminate_map(expname, F, delta, mask, noisemap = None, additive = None):
     """
     inputs:
+        expname (str) : name of experiment 
         F (float array) : selection function in healpy
         delta (float array) :truth density map in healpy
         mask (bool array) : mask for density map in healpy
-        expname (str) : experiment name
         noisemap (float array) : noise model for density map in healy
         additive (healpy map, optional) : additive window component
-        divide_window (boolean) : flag for applying systematics to data map
-                                    than random maps
     """
 
     delta_cont = np.zeros(delta.shape[0])
     delta_cont[:] = hp.UNSEEN #default set to UNSEEN
-    
+    #print(expname)
     if((expname == 'A') | (expname == 'B')):
         delta_cont[mask] = F[mask]*delta[mask] + np.sqrt(F[mask])*noisemap[mask]
     elif(expname == 'C'):
@@ -211,9 +209,9 @@ def contaminate_map(F, delta, mask, expname, noisemap = None, additive = None):
     elif(expname == 'D'):
         delta_cont[mask] = delta[mask] + np.sqrt(1/F[mask])*noisemap[mask]
     elif(expname == 'E'):
-        delta_cont[mask] = F[mask]/additive[mask]*delta[mask] + np.sqrt(1/F[mask])*noisemap[mask]
+        delta_cont[mask] = F[mask]/additive[mask]*delta[mask] + (np.sqrt(F[mask])/additive[mask])*noisemap[mask]
     elif(expname == 'F'):
-        delta_cont[mask] = F[mask]/additive[mask](1. + delta[mask]) + (np.sqrt(F[mask])/additive[mask])*noisemap[mask] - 1
+        delta_cont[mask] = (F[mask]/additive[mask])*(1. + delta[mask]) + (np.sqrt(F[mask])/additive[mask])*noisemap[mask] - 1
     else:
         raise ValueError("Wrong experiment name entered.")
         
@@ -236,11 +234,12 @@ def contaminate_map(F, delta, mask, expname, noisemap = None, additive = None):
     #    delta_cont[mask] = F[mask]*delta[mask] #only true when img_applied_data
     return delta_cont
 
-def cls_from_mock(cls_th, cls_shot_noise, F, mask, seed, LMAX, NSIDE = 1024, \
-    additive = None, divide_window = False):
+def cls_from_mock(expname, cls_th, cls_shot_noise, F, mask, seed, LMAX, NSIDE = 1024, \
+    additive = None):
     """Generate a mock given conditions and calculate pseudo-Cls from the mock.
 
     Inputs:
+        expname (str) : name of experiment
         cls_th (np.array) : array of theory Cl values to be used to generate
                             mock
         cls_shot_noise (np.array) : array of Cl values to be used to generate
@@ -253,9 +252,6 @@ def cls_from_mock(cls_th, cls_shot_noise, F, mask, seed, LMAX, NSIDE = 1024, \
         NSIDE (int) : nside for healpy
         additive (np.array) : array of average F map used for additive component
                                 experiments
-        divide_window (bool) : flag for applying systematics to data map
-                                    than random maps
-
 
     Returns:
         cls_obs (np.array) : array of pseudo-Cls based on generated mock. Not
@@ -274,13 +270,16 @@ def cls_from_mock(cls_th, cls_shot_noise, F, mask, seed, LMAX, NSIDE = 1024, \
         nside = NSIDE, lmax = LMAX, pol = False, verbose = False)
 
     #add img sys
-    if additive is not None:
-        delta_c = contaminate_map(F = F, delta = delta_g, mask = mask,
-        noisemap = noise_g, additive = additive,
-        divide_window = divide_window)
-    else:
-        delta_c = contaminate_map(F = F, delta = delta_g, mask = mask,
-        noisemap = noise_g, divide_window = divide_window)
+    delta_c = contaminate_map(expname = expname, F = F, delta = delta_g, 
+                              mask = mask, noisemap = noise_g, 
+                              additive = additive)
+    #if additive is not None:
+    #    delta_c = contaminate_map(F = F, delta = delta_g, mask = mask,
+    #    noisemap = noise_g, additive = additive,
+    #    divide_window = divide_window)
+    #else:
+    #    delta_c = contaminate_map(F = F, delta = delta_g, mask = mask,
+    #    noisemap = noise_g, divide_window = divide_window)
 
     #calcuate pseudo-Cl
     cls_obs = hp.anafast(delta_c, lmax = LMAX -1, pol = False)
