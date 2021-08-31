@@ -19,6 +19,7 @@ import params as pm
 import glob
 flist = glob.glob("/home/tkarim/imaging-sys-covariance/dat/windows/*fits")
 
+np.save("../dat/flist_pClpy.npy", flist, allow_pickle = False)
 #plotting parameters
 fs = 20 #font size
 fsize = (10, 7) #figure size
@@ -30,8 +31,6 @@ cls_shot_noise = 1/nbar_sr * np.ones_like(pm.ell)
 
 #read in random and degrade it to generate mask
 dr_elg_ran = np.load("../dat/elg_ran1024.npy")
-#dr_elg_ran64 = hp.ud_grade(dr_elg_ran, 64) #make it very coarse to remove weird effects in the middle
-#dr_elg_ran_final = hp.ud_grade(dr_elg_ran64, pm.NSIDE) #leave as be for stellar masks
 
 mask = np.copy(dr_elg_ran)
 mask[dr_elg_ran != 0] = 1 #good pixels are 1
@@ -41,9 +40,7 @@ mask = mask.astype("bool")
 Favg_map = np.load("../dat/windows/Favg/Favg_map_unpickled.npy")
 
 #set theory Cls
-cls_elg_th = cgll(ell = pm.ell, bias = pm.b1, Omega_c = pm.Omega_c,
-                    Omega_b = pm.Omega_b, h = pm.h, A_s = pm.A_s, 
-                    n_s = pm.n_s)
+cls_elg_th = np.load("/home/tkarim/imaging-sys-covariance/dat/cosmology_ini/gaussian_mocks/cl_th.npy")
 
 ##MAIN PART OF THE CODE##
 
