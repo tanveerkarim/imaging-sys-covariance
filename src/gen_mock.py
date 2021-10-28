@@ -10,8 +10,11 @@ sys.path.insert(1, '/home/tkarim/imaging-sys-covariance/src/')
 import params as pm
 from lib import *
 
+from time import time 
+
 from multiprocessing import Pool
 
+start_time = time()
 #import theory signal Cls generated from CLASS
 cls_elg_th = np.load("../dat/cosmology_ini/gaussian_mocks/cl_th.npy")
 
@@ -41,9 +44,17 @@ def genMock(seed):
     return map_signal, map_noise
 
 #launch parallel processes
-for i in range(niter):
+for i in range(2):
     with Pool(nprocesses) as p:
         idx = i * nprocesses + j
-        delta_and_noise_maps = np.array(p.map(genMock, idx + SEED)).T
-        
-        np.save(mock_dir + f"delta_and_noise_maps_niter_{i}.npy", delta_and_noise_maps, allow_pickle = False)
+        signal_and_noise_maps = np.array(p.map(genMock, idx + SEED))
+        maps_signal = signal_and_noise_maps[:,0,:]
+        maps_noise = signal_and_noise_maps[:,1,:]
+
+        for k, mapIdx in enumerate(idx):
+            np.save(mock_dir + f"signal/signalMap_{mapIdx}.npy", maps_signal[k], allow_pickle=False)
+            np.save(mock_dir + f"noise/noiseMap_{mapIdx}.npy", maps_noise[k], allow_pickle=False)
+
+end_time = time()
+
+print(f"Total time taken: {end_time - start_time}")
