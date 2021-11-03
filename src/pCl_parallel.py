@@ -16,7 +16,7 @@ from lib import read_img_map
 
 from time import time 
 
-EXP_ID = sys.argv[1]
+JOB_ID = sys.argv[1]
 
 ##GLOBALS
 nmaps = 1000 #number of maps in this single node
@@ -116,14 +116,16 @@ getpCls(idx):
 
     return pcls, fsky, n_window
 
-pcls = {}; fsky = {}; n_window = {}
+pcls = {}; fsky = {}; n_window = {} #for storing values
 
- for i in range(nmaps//njobs_parallel):
+ for i in range(nmaps//njobs_parallel): #i refers to chunk of maps processed together
     idx = i * njobs_parallel + np.arange(njobs_parallel)
     with Pool(njobs_parallel):
         output = Pool.map(getpCls, idx)
     pcls[i] = output[0]
     fsky[i] = output[1]
-    n_window = output[2]
+    n_window[i] = output[2]
 
-np.save(values)
+stats = {'pcls': pcls, 'fsky': fsky, 'window_noise': n_window}
+
+np.save(outp_dir + JOB_ID + ".npy", stats)
