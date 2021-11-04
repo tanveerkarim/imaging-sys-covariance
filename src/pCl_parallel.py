@@ -22,6 +22,7 @@ JOB_ID = sys.argv[1]
 nmaps = 1000 #number of maps in this single node
 njobs_parallel = 5 #number of parallel processes in this node
 data_dir = "/mnt/gosling1/tkarim/img-sys/"
+experiments = ['A', 'B', 'C', 'D', 'E', 'F'] #list of definitions 
 
 #list of all selection function fits files
 if(window_type == 'lin'): #linear
@@ -35,8 +36,6 @@ elif(window_type == 'nn'): #neural network
 else:
     raise ValueError("Wrong window type entered.")
 
-experiments = ['A'.. 'F']
-
 #import theory signal Cls generated from CLASS
 cls_elg_th = np.load("../dat/cosmology_ini/gaussian_mocks/cl_th.npy")
 
@@ -47,8 +46,24 @@ cls_shot_noise = 1/nbar_sr * np.ones_like(pm.ell)
 #define seed
 SEED = 42
 
+#import base mask; defined by fpix on DR9 ELG randoms
+mask = np.load("")
+
+#define fsky and n_window for definitions A, B, C and D b/c these needn't be looped
+if(expname == 'A'):
+    fsky = np.mean(mask)
+    map_sys = sys_avg_map  # since fixed window set outside loop
+    n_window = np.mean(map_sys)*1/nbar_sr
+elif((expname == 'B') | (expname == 'C')):
+    fsky = np.mean(mask)
+elif(expname == 'D'):
+    mask = mask & (sys_avg_map > pm.tol)
+    fsky = np.mean(mask))
+    map_sys=sys_avg_map  # since fixed window set outside loop
+    n_window = np.mean(1/map_sys[mask]) * 1/nbar_sr 
+
 ##FUNCTIONS
-def contaminate_map(signal, noise, sys, expname):
+def contaminate_map(signal, noise, sys, expname): ##TO DO: HAVE TO DEFINE MASKS APPROPRIATELY
     """
     Returns contaminated maps based on Karim et al. 2021 definitions
     
@@ -92,40 +107,69 @@ def contaminate_map(signal, noise, sys, expname):
 
     return map_cont 
 
-def genMock(seed):  # apply window at this
-    """Returns windowed signal and noise mocks given seed"""
-    rng = np.random.default_rng(seed)  # set random number generator
-
+def genMock(idx):  # apply window at this
+    """
+    Returns signal, noise and systematics map given index
+    """
+    
+    rng_signal = np.random.default_rng(SEED + idx)  # set random number generator
     map_signal = hp.synfast(cls=cls_elg_th, nside=pm.NSIDE, pol=False,
-                            verbose=False)
+                            verbose=False, rng=rng_signal)
+    
+    rng_noise  = np.random.default_rng(2000 + SEED + idx)
     map_noise = hp.synfast(cls=cls_shot_noise, nside=pm.NSIDE, pol=False,
-                           verbose=False)
+                           verbose=False, rng=rng_noise)
+    
     map_sys = read_img_map(flist[idx])
 
-    map_contaminated = contaminate_map(signal = map_signal,
-                             noise = map_noise, sys = map_sys,
-                              expname = EXP_ID)
+    return map_signal, map_noise, map_sys
 
-    return map_signal_contaminated, map_noise
-
-getpCls(idx):
-    map_signal, map_noise = genMock(idx)
+def getpCls(idx):
+    """
+    Returns pcl, fsky and n_window given index
+    """
     
-    """DO calculation """
-    for experiment in experiments: 
+    map_signal, map_noise, map_sys = genMock(idx)
+
+    for experiment in experiments: #loop over all definitions
+        
+        #contaminate map per experiment
+        map_contaminated = contaminate_map(signal = map_signal,
+                             noise = map_noise, sys = map_sys,
+                              expname = experiment)
+
+        map_signal_contaminated, map_sys = genMock(idx)
+    
+        #calcuate pseudo-Cl
+        pcls = hp.anafast(map_signal_contaminated, lmax=pm.LMAX - 1, pol=False)
+
+    #calculate fsky and n_window
+    if((expname == 'E') | (expname == 'F')):
+        mask = mask & (tmpF > pm.tol)
+        fsky[i] = np.sum(mask)/mask.shape[0]
+        nl[i] = np.mean(1/tmpF[mask]) * 1/nbar_sr
+    elif((expname == 'B') | (expname == 'C')):
+        nl[i] = np.mean(tmpF)*1/nbar_sr
+
+        #calculate fsky and n_window
+        if((experiment == 'A') | (experiment == 'B') | (experiment == 'C') | (experiment == 'D')):
+            fsky = fsky
+        
+        if((expname == 'A') | (expname == 'D')):
+            n_window = n_window
 
     return pcls, fsky, n_window
 
-pcls = {}; fsky = {}; n_window = {} #for storing values
+pcls_dict = {}; fsky_dict = {}; n_window_dict = {} #for storing values
 
  for i in range(nmaps//njobs_parallel): #i refers to chunk of maps processed together
     idx = i * njobs_parallel + np.arange(njobs_parallel)
     with Pool(njobs_parallel):
         output = Pool.map(getpCls, idx)
-    pcls[i] = output[0]
-    fsky[i] = output[1]
-    n_window[i] = output[2]
+    pcls_dict[i] = output[0]
+    fsky_dict[i] = output[1]
+    n_window_dict[i] = output[2]
 
-stats = {'pcls': pcls, 'fsky': fsky, 'window_noise': n_window}
+stats = {'pcls': pcls_dict, 'fsky': fsky_dict, 'window_noise': n_window_dict}
 
 np.save(outp_dir + JOB_ID + ".npy", stats)
