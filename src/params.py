@@ -17,9 +17,7 @@ ell = np.arange(0, LMAX, 1)
 ELL = np.logspace(0, np.log10(LMAX), 10)
 
 #fsky
-mask = np.load("../dat/elg_ran1024.npy")
-mask[mask != 0] = 1 #good pixels are 1
-mask = mask.astype("bool")
+mask = np.load("../dat/mask_bool_dr9.npy")
 fsky = np.sum(mask)/mask.size
 
 #linear bias
