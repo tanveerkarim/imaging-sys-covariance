@@ -6,6 +6,6 @@ import numpy as np
 window_dir = "/mnt/gosling1/tkarim/img-sys/mocks/linear/windows/"
 out_dir = "../dat/"
 
-flist = glob(window_dir + "window_*")
+flist = glob(window_dir + "*fits")
 
 np.save(out_dir + "flist_window_linear.npy", flist)

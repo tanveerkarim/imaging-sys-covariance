@@ -1,4 +1,4 @@
-"""Produces Favg_map to be used for further analysis"""
+"""Produces sysavg_map to be used for further analysis"""
 
 import numpy as np
 import healpy as hp
@@ -6,55 +6,47 @@ import healpy as hp
 import sys
 sys.path.insert(1, '../src/')
 from lib import *
+import params as pm
 
 #list of all selection function fits files
-import glob
-flist = glob.glob("/home/tanveer/Documents/desi-planck-cross-corr/imaging-sys-covariance/dat/windows_1000mocks/*fits")
-
-#parameters
-NSELFUNC = 1000 #number of selection functions
-NSIDE = 1024
-tol = 0.8 #threshold for 1/F mean calculation
+flist = np.load("../dat/flist_window_linear.npy")
 
 #read in random for mask generation
-dr_elg_ran = np.load("../dat/elg_ran1024.npy")
-mask = np.copy(dr_elg_ran)
-mask[dr_elg_ran != 0] = 1 #good pixels are 1
-mask = mask.astype("bool")
+mask = np.load("../dat/mask_bool_dr9.npy")
 
 #store values for diagnostics
-Fmean_pre = np.zeros(NSELFUNC) #mean of sel funcs prior norm correction
-Fmean_post = np.zeros(NSELFUNC) #mean of sel funcs post norm correction
-invFmean_pre = np.zeros(NSELFUNC) #mean of sel funcs prior norm correction
-invFmean_post = np.zeros(NSELFUNC) #mean of sel funcs post norm correction
-Favg_map = np.zeros(12*NSIDE**2) #average selection function
+sysmean_pre = np.zeros(pm.NMOCKS) #mean of sys map prior norm correction
+sysmean_post = np.zeros(pm.NMOCKS)  # mean of sys map post norm correction
+invsysmean_pre = np.zeros(pm.NMOCKS)  # mean of sys map prior norm correction
+invsysmean_post = np.zeros(pm.NMOCKS) #mean of sys map post norm correction
+sysavg_map = np.zeros(12*pm.NSIDE**2)  # average sys map
 
-for i in range(NSELFUNC):
-    tmpF = read_img_map(flist[i])
-    masked_tmpF_mean = np.mean(tmpF[mask > 0]) #mean of sel. func. tmpF
-    Fmean_pre[i] = np.mean(tmpF[mask > 0]) #means of sel. funcs
-    invFmean_pre[i] = np.mean(1/tmpF[tmpF > tol])
+for i in range(len(flist)):
+    tmpsys = read_img_map(flist[i])
+    masked_tmpsys_mean = np.mean(tmpsys[mask > 0]) #mean of sys map tmpsys
+    sysmean_pre[i] = np.mean(tmpsys[mask > 0])  # means of sys map
+    invsysmean_pre[i] = np.mean(1/tmpsys[tmpsys > pm.tol])
 
-    #Renormalize map to <F> = 1; Mehdi clipped extreme values so <F> != 1
-    tmpF = tmpF/masked_tmpF_mean
-    Fmean_post[i] = np.mean(tmpF[mask > 0])
-    invFmean_post[i] = np.mean(1/tmpF[tmpF > tol])
+    #Renormalize map to <sys> = 1; Mehdi clipped extreme values so <sys> != 1
+    tmpsys = tmpsys/masked_tmpsys_mean
+    sysmean_post[i] = np.mean(tmpsys[mask > 0])
+    invsysmean_post[i] = np.mean(1/tmpsys[tmpsys > pm.tol])
 
     #define running average
-    Favg_map = (tmpF + i * Favg_map)/(i + 1)
+    sysavg_map = (tmpsys + i * sysavg_map)/(i + 1)
 
-    if((i % (NSELFUNC//10)) == 0):
+    if((i % (pm.NMOCKS//10)) == 0):
         print(i)
 
 print('Pre normalization')
 print('------------')
-print(f'Fmean -- mean: {np.mean(Fmean_pre)}, low: {np.min(Fmean_pre)}, high: {np.max(Fmean_pre)}')
-print(f'invFmean -- mean: {np.mean(invFmean_pre)}, low: {np.min(invFmean_pre)}, high: {np.max(invFmean_pre)}')
+print(f'Sys map mean -- mean: {np.mean(sysmean_pre)}, low: {np.min(sysmean_pre)}, high: {np.max(sysmean_pre)}')
+print(f'invsysmap mean -- mean: {np.mean(invsysmean_pre)}, low: {np.min(invsysmean_pre)}, high: {np.max(invsysmean_pre)}')
 print('------------')
 print('Post normalization')
 print('------------')
-print(f'Fmean -- mean: {np.mean(Fmean_post)}, low: {np.min(Fmean_post)}, high: {np.max(Fmean_post)}')
-#print(f'Favg_map -- mean: {np.mean(Favg_map[mask>0])}, low: {np.min(Favg_map[mask>0])}, high: {np.max(Favg_map[mask>0])}')
-print(f'invFmean -- mean: {np.mean(invFmean_post)}, low: {np.min(invFmean_post)}, high: {np.max(invFmean_post)}')
+print(f'Sys map mean -- mean: {np.mean(sysmean_post)}, low: {np.min(sysmean_post)}, high: {np.max(sysmean_post)}')
+#print(f'sysavg_map -- mean: {np.mean(sysavg_map[mask>0])}, low: {np.min(sysavg_map[mask>0])}, high: {np.max(sysavg_map[mask>0])}')
+print(f'invsysmap mean -- mean: {np.mean(invsysmean_post)}, low: {np.min(invsysmean_post)}, high: {np.max(invsysmean_post)}')
 
-np.save("../dat/windows_1000mocks/Favg/Favg_map.npy", Favg_map)
+np.save("../dat/sysavg_map_lin.npy", sysavg_map)

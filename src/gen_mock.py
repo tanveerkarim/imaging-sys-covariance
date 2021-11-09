@@ -44,7 +44,7 @@ def genMock(seed):
     return map_signal, map_noise
 
 #launch parallel processes
-for i in range(2):
+for i in range(niter):
     with Pool(nprocesses) as p:
         idx = i * nprocesses + j
         signal_and_noise_maps = np.array(p.map(genMock, idx + SEED))
