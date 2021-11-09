@@ -37,7 +37,7 @@ experiments = ['A', 'B', 'C', 'D', 'E', 'F'] #list of definitions
 #list of all selection function fits files
 if(window_type == 'lin'): #linear
     flist = np.load("../dat/flist_window_linear.npy")
-    map_sys_avg = np.load("") #read in the average map 
+    map_sys_avg = np.load("../dat/sysavg_map_lin.npy") #read in the average map 
     outp_dir = data_dir + "stats/linear/"
 elif(window_type == 'nn'): #neural network
     flist = np.load("../dat/flist_window_nn.npy")
@@ -57,53 +57,72 @@ cls_shot_noise = 1/nbar_sr * np.ones_like(pm.ell)
 SEED = 42
 
 #import base mask; defined by fpix on DR9 ELG randoms
-mask_base = np.load("")
+mask_base = np.load("../dat/mask_bool_dr9.npy")
 
 ##FUNCTIONS
-def contaminate_map(signal, noise, sys, mask, expname): ##TO DO: HAVE TO DEFINE MASKS APPROPRIATELY
+
+
+# TO DO: HAVE TO DEFINE MASKS APPROPRIATELY
+def contaminate_map(map_signal, map_noise, map_sys, map_mask, expname):
     """
     Returns contaminated maps based on Karim et al. 2021 definitions
     
         Parameters:
-            signal (healpy map): map of delta signal
-            noise  (healpy map): map of delta noise 
-            sys    (healpy map): map of imaging systematics
-            mask   (healpy map): boolean map of footprint; pix_good == 1 
+            map_signal (healpy map): map of delta map_signal
+            map_noise  (healpy map): map of delta map_noise 
+            map_sys    (healpy map): map of imaging systematics
+            map_mask   (healpy map): boolean map of footprint; pix_good == 1 
             expname (str) : definition of delta contaminate map 
         
         Returns:
-            map_cont (healpy map) : map of contaminated signal
+            map_cont (healpy map) : map of contaminated map_signal
     """
-    
-    map_cont = np.zeros(signal.shape[0])
+
+    map_cont = np.zeros(map_signal.shape[0])
     map_cont[:] = hp.UNSEEN  # default set to UNSEEN
-    
+
+    #renormalize window such that <W_g> = 1.
+    masked_window_mean = np.mean(map_sys[map_mask > 0])
+    map_sys = map_sys/masked_window_mean
+
     if(expname == 'A'):
-        sys_known = map_sys_avg  # idealized known window
-        map_cont[mask] = sys_known[mask]*signal[mask] + \
-            np.sqrt(sys_known[mask])*noise[mask]
+        map_sys_known = map_sys_avg  # idealized known window
+        map_sys_known /= masked_window_mean
+
+        map_cont[map_mask] = map_sys_known[map_mask]*map_signal[map_mask] + \
+            np.sqrt(map_sys_known[map_mask])*map_noise[map_mask]
     elif(expname == 'B'):
-        map_cont[mask] = sys[mask]*signal[mask] + \
-            np.sqrt(sys[mask])*noise[mask]
+        map_cont[map_mask] = map_sys[map_mask]*map_signal[map_mask] + \
+            np.sqrt(map_sys[map_mask])*map_noise[map_mask]
     elif(expname == 'C'):
-        sys_estimated = map_sys_avg #best estimator of window
-        map_cont[mask] = sys[mask]*(1 + signal[mask]) + \
-            np.sqrt(sys[mask])*noise[mask] - sys_estimated[mask]
+        map_sys_estimated = map_sys_avg  # best estimator of window
+        map_cont[map_mask] = map_sys[map_mask]*(1 + map_signal[map_mask]) + \
+            np.sqrt(map_sys[map_mask])*map_noise[map_mask] - \
+            map_sys_estimated[map_mask]
     elif(expname == 'D'):
-        sys_known = map_sys_avg
-        map_cont[mask] = signal[mask] + np.sqrt(1/sys_known[mask])*noise[mask]
+        map_sys_known = map_sys_avg
+        map_sys_known /= masked_window_mean
+
+        map_cont[map_mask] = map_signal[map_mask] + \
+            np.sqrt(1/map_sys_known[map_mask])*map_noise[map_mask]
     elif(expname == 'E'):
-        sys_estimated = map_sys_avg
-        map_cont[mask] = (sys[mask]*signal[mask])/sys_estimated[mask] + \
-            (np.sqrt(sys[mask])*noise[mask])/sys_estimated[mask]
+        map_sys_estimated = map_sys_avg
+        map_sys_estimated /= masked_window_mean
+
+        map_cont[map_mask] = (map_sys[map_mask]*map_signal[map_mask])/map_sys_estimated[map_mask] + \
+            (np.sqrt(map_sys[map_mask])*map_noise[map_mask]) / \
+            map_sys_estimated[map_mask]
     elif(expname == 'F'):
-        sys_estimated = map_sys_avg
-        map_cont[mask] = (sys[mask]*(1. + signal[mask]))/sys_estimated[mask] +
-        (np.sqrt(sys[mask])*noise[mask])/sys_estimated[mask] - 1
+        map_sys_estimated = map_sys_avg
+        map_sys_estimated /= masked_window_mean
+
+        map_cont[map_mask] = (map_sys[map_mask]*(1. + map_signal[map_mask]))/map_sys_estimated[map_mask] +
+        (np.sqrt(map_sys[map_mask])*map_noise[map_mask]) / \
+            map_sys_estimated[map_mask] - 1
     else:
         raise ValueError("Wrong experiment name entered.")
 
-    return map_cont 
+    return map_cont
 
 def genMock(idx):  # apply window at this
     """
@@ -141,10 +160,6 @@ def getpCls(idx):
                                                         #since 1/map_sys_avg
         elif((experiment == 'E') | (experiment == 'F')):
             map_mask = mask_base & (map_sys > pm.tol)
-
-        #renormalize window such that <W_g> = 1.
-        masked_window_mean = np.mean(map_sys[map_mask > 0])
-        map_sys = map_sys/masked_window_mean
 
         #contaminate map per experiment
         map_contaminated = contaminate_map(signal = map_signal,
