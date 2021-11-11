@@ -5,11 +5,12 @@ simultaneously.
 """
 
 import os 
-os.environ["OMP_NUM_THREADS"] = 16
+os.environ["OMP_NUM_THREADS"] = "16"
 
 import numpy as np
 import healpy as hp
 from multiprocessing import Pool
+import pickle 
 
 import sys
 sys.path.insert(1, '/home/tkarim/imaging-sys-covariance/src/')
@@ -18,7 +19,7 @@ from lib import read_img_map
 
 import argparse
 
-#from time import time 
+from time import time 
 
 #parser for bash arguments
 parser = argparse.ArgumentParser()
@@ -35,13 +36,13 @@ data_dir = "/mnt/gosling1/tkarim/img-sys/"
 experiments = ['A', 'B', 'C', 'D', 'E', 'F'] #list of definitions 
 
 #list of all selection function fits files
-if(window_type == 'lin'): #linear
+if(window_type == 'linear'): #linear
     flist = np.load("../dat/flist_window_linear.npy")
     map_sys_avg = np.load("../dat/sysavg_map_lin.npy") #read in the average map 
     outp_dir = data_dir + "stats/linear/"
 elif(window_type == 'nn'): #neural network
     flist = np.load("../dat/flist_window_nn.npy")
-    map_sys_avg = np.load("")  # read in the average map
+    map_sys_avg = np.load("../dat/sysavg_map_nn.npy")  # read in the average map
     outp_dir = data_dir + "stats/nn/"
 else:
     raise ValueError("Wrong window type entered.")
@@ -116,8 +117,9 @@ def contaminate_map(map_signal, map_noise, map_sys, map_mask, expname):
         map_sys_estimated = map_sys_avg
         map_sys_estimated /= masked_window_mean
 
-        map_cont[map_mask] = (map_sys[map_mask]*(1. + map_signal[map_mask]))/map_sys_estimated[map_mask] +
-        (np.sqrt(map_sys[map_mask])*map_noise[map_mask]) / \
+        map_cont[map_mask] = (map_sys[map_mask]*(1. + \
+            map_signal[map_mask]))/map_sys_estimated[map_mask] + \
+            (np.sqrt(map_sys[map_mask])*map_noise[map_mask]) / \
             map_sys_estimated[map_mask] - 1
     else:
         raise ValueError("Wrong experiment name entered.")
@@ -155,46 +157,53 @@ def getpCls(idx):
         
         if((experiment == 'A') | (experiment == 'B') | (experiment == 'C')):
             map_mask = mask_base
-        elif(experiment == 'D'):
+        elif((experiment == 'D') | (experiment == 'E') | (experiment == 'F')):
             map_mask = mask_base & (map_sys_avg > pm.tol) #need to overmask 
                                                         #since 1/map_sys_avg
-        elif((experiment == 'E') | (experiment == 'F')):
-            map_mask = mask_base & (map_sys > pm.tol)
+        #elif((experiment == 'E') | (experiment == 'F')): deprecate to use same mask
+        #    map_mask = mask_base & (map_sys > pm.tol)
 
         #contaminate map per experiment
-        map_contaminated = contaminate_map(signal = map_signal,
-                            noise = map_noise, sys = map_sys,
-                            mask = map_mask,
+        map_contaminated = contaminate_map(map_signal = map_signal,
+                            map_noise = map_noise, map_sys = map_sys,
+                            map_mask = map_mask,
                             expname = experiment)
     
         #calcuate pseudo-Cl
         pcls_idx[experiment] = hp.anafast(map_contaminated, lmax=pm.LMAX - 1, 
                                             pol=False)
         #calculate fsky
-        fsky_idx[experiment] = np.mean(map_mask)
+        #fsky_idx[experiment] = np.mean(map_mask)
         #calculate window noise
-        if(experiment == 'A'):
-            n_window_idx[experiment] = np.mean(map_sys_avg[mask]) * 1/nbar_sr
-        elif(experiment == 'D'):
-            n_window_idx[experiment] = np.mean(1/map_sys_avg[map_mask]) * 1/nbar_sr
-        if((experiment == 'B') | (experiment == 'C'))::
-            n_window_idx[experiment] = np.mean(map_sys[mask]) * 1/nbar_sr
-        elif((experiment == 'E') | (experiment == 'F')):
-            n_window_idx[experiment] = np.mean(1/map_sys[map_mask]) * 1/nbar_sr
-        n_window_idx[experiment] = 
+        #if(experiment == 'A'):
+        #    n_window_idx[experiment] = np.mean(map_sys_avg[map_mask]) * 1/nbar_sr
+        #elif(experiment == 'D'):
+        #    n_window_idx[experiment] = np.mean(1/map_sys_avg[map_mask]) * 1/nbar_sr
+        #if((experiment == 'B') | (experiment == 'C')):
+        #    n_window_idx[experiment] = np.mean(map_sys[map_mask]) * 1/nbar_sr
+        #elif((experiment == 'E') | (experiment == 'F')):
+        #    n_window_idx[experiment] = np.mean(1/map_sys[map_mask]) * 1/nbar_sr
+        #n_window_idx[experiment] = np.mean(1/map_sys[map_mask]) * 1/nbar_sr
 
-    return pcls_idx, fsky_idx, n_window_idx
+    return pcls_idx#, fsky_idx, n_window_idx
 
-pcls_dict = {}; fsky_dict = {}; n_window_dict = {} #for storing values
+pcls_dict = {}#; fsky_dict = {}; n_window_dict = {} #for storing values
 
- for i in range(nmaps//njobs_parallel): #i refers to chunk of maps processed together
-    idx = JOB_ID + i * njobs_parallel + np.arange(njobs_parallel)
-    with Pool(njobs_parallel):
-        output = Pool.map(getpCls, idx)
+start_time = time()
+
+for i in range(nmaps//njobs_parallel): #i refers to chunk of maps processed together
+    idx = JOB_ID*int(100) + i * njobs_parallel + np.arange(njobs_parallel)
+    with Pool(njobs_parallel) as p:
+        output = p.map(getpCls, idx)
     pcls_dict[i] = output[0]
-    fsky_dict[i] = output[1]
-    n_window_dict[i] = output[2]
+    #fsky_dict[i] = output[1]
+    #n_window_dict[i] = output[2]
 
-stats = {'pcls': pcls_dict, 'fsky': fsky_dict, 'window_noise': n_window_dict}
+stats = {'pcls': pcls_dict}#, 'fsky': fsky_dict, 'window_noise': n_window_dict}
 
-np.save(outp_dir + JOB_ID + ".npy", stats)
+end_time = time()
+print(f"100 jobs took {end_time - start_time} seconds.")
+
+pickle.dump(stats, open(outp_dir + str(JOB_ID) + ".npy", "wb"))
+
+#np.save(, stats)
