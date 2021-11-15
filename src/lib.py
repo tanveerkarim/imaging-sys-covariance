@@ -180,59 +180,14 @@ def bin_mat(r=[],mat=[],r_bins=[]):
 
 #I/O of systematic maps
 def read_img_map(filename, nside=1024):
-    d = ft.read(filename)
-    m = np.zeros(12*nside*nside)
-    v = d['weight'] / np.median(d['weight']) # normalize by the median
+    d = hp.read_map(filename)
+    mask = np.load("../dat/mask_bool_dr9.npy")
+    d[~mask] = hp.UNSEEN #set bad pixels to UNSEEN
+    v = d[mask]/np.median(d[mask]) # normalize by the median
     v = v.clip(0.5, 2.0)                     # clip the extremes
-    v = v / v.mean()                         # normalize to one
-    m[d['hpix']] = v
-    return m
-
-def contaminate_map(expname, F, delta, mask, noisemap = None, additive = None):
-    """
-    inputs:
-        expname (str) : name of experiment 
-        F (float array) : selection function in healpy
-        delta (float array) :truth density map in healpy
-        mask (bool array) : mask for density map in healpy
-        noisemap (float array) : noise model for density map in healy
-        additive (healpy map, optional) : additive window component
-    """
-
-    delta_cont = np.zeros(delta.shape[0])
-    delta_cont[:] = hp.UNSEEN #default set to UNSEEN
-    #print(expname)
-    if((expname == 'A') | (expname == 'B')):
-        delta_cont[mask] = F[mask]*delta[mask] + np.sqrt(F[mask])*noisemap[mask]
-    elif(expname == 'C'):
-        delta_cont[mask] = F[mask]*(1 + delta[mask]) + np.sqrt(F[mask])*noisemap[mask] - additive[mask]
-    elif(expname == 'D'):
-        delta_cont[mask] = delta[mask] + np.sqrt(1/F[mask])*noisemap[mask]
-    elif(expname == 'E'):
-        delta_cont[mask] = F[mask]/additive[mask]*delta[mask] + (np.sqrt(F[mask])/additive[mask])*noisemap[mask]
-    elif(expname == 'F'):
-        delta_cont[mask] = (F[mask]/additive[mask])*(1. + delta[mask]) + (np.sqrt(F[mask])/additive[mask])*noisemap[mask] - 1
-    else:
-        raise ValueError("Wrong experiment name entered.")
-        
-    #if noisemap is not None: #if noise map provided
-    #    if additive is not None: #if additive component provided
-    #        if(divide_window): #if systematics applied to data
-    #            delta_cont[mask] = (F[mask]/additive[mask])*(1 + delta[mask]) + \
-    #            (np.sqrt(F[mask])/additive[mask])*noisemap[mask] - 1. #EXP F
-    #        else:
-    #            delta_cont[mask] = F[mask]*(1 + delta[mask]) + \
-    #            np.sqrt(F[mask])*noisemap[mask] - additive[mask] #EXP C
-    #    else:
-    #        if(divide_window):
-    #            delta_cont[mask] = delta[mask] + \
-    #            np.sqrt(1/F[mask])*noisemap[mask] #EXP D and E
-    #        else:
-    #            delta_cont[mask] = F[mask]*delta[mask] + \
-    #            np.sqrt(F[mask])*noisemap[mask] #EXP A and B
-    #else:
-    #    delta_cont[mask] = F[mask]*delta[mask] #only true when img_applied_data
-    return delta_cont
+    v /= v.mean()                         # normalize to one
+    d[mask] = v
+    return d
 
 def cls_from_mock(expname, cls_th, cls_shot_noise, F, mask, seed, LMAX_OUT, NSIDE = 1024, \
     additive = None):

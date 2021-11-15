@@ -2,10 +2,17 @@
 
 from glob import glob 
 import numpy as np 
+import argparse
 
-window_dir = "/mnt/gosling1/tkarim/img-sys/mocks/linear/windows/"
+#parser for bash arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("--window_type", "-wt", type=str, help="linear or nn")
+args = parser.parse_args()
+wtype = args.window_type
+
+window_dir = "/mnt/gosling1/tkarim/img-sys/mocks/" + wtype + "/"
 out_dir = "../dat/"
 
 flist = glob(window_dir + "*fits")
 
-np.save(out_dir + "flist_window_linear.npy", flist)
+np.save(out_dir + "flist_window_" + wtype + ".npy", flist)
