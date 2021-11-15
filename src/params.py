@@ -6,7 +6,7 @@ fsize = (10, 7)
 
 #mock definitions
 tol = 0.8
-NMOCKS = 1000
+NMOCKS = 100
 nbar_sqdeg = 2400 #number density of galaxies
 
 #Fourier Space definitions

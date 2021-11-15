@@ -1,5 +1,6 @@
 """Produces sysavg_map to be used for further analysis"""
 
+import argparse
 import numpy as np
 import healpy as hp
 
@@ -8,8 +9,14 @@ sys.path.insert(1, '../src/')
 from lib import *
 import params as pm
 
-#list of all selection function fits files
-flist = np.load("../dat/flist_window_linear.npy")
+
+#parser for bash arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("--window_type", "-wt", type=str, help="linear or nn")
+args = parser.parse_args()
+wtype = args.window_type
+print(wtype)
+flist = np.load("../dat/flist_window_" + wtype +".npy")
 
 #read in random for mask generation
 mask = np.load("../dat/mask_bool_dr9.npy")
@@ -49,4 +56,4 @@ print(f'Sys map mean -- mean: {np.mean(sysmean_post)}, low: {np.min(sysmean_post
 #print(f'sysavg_map -- mean: {np.mean(sysavg_map[mask>0])}, low: {np.min(sysavg_map[mask>0])}, high: {np.max(sysavg_map[mask>0])}')
 print(f'invsysmap mean -- mean: {np.mean(invsysmean_post)}, low: {np.min(invsysmean_post)}, high: {np.max(invsysmean_post)}')
 
-np.save("../dat/sysavg_map_lin.npy", sysavg_map)
+np.save("../dat/sysavg_map_" + wtype + ".npy", sysavg_map)

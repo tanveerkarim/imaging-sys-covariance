@@ -71,6 +71,7 @@ map_sys_estimated = deepcopy(map_sys_avg)
 masked_window_mean = np.mean(map_sys_estimated[map_mask > 0])
 map_sys_estimated /= masked_window_mean
 
+tst 
 ##FUNCTIONS
 def contaminate_map(map_signal, map_noise, map_sys, expname, map_mask = map_mask):
     """
